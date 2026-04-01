@@ -9,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../domain/entities/task_entity.dart';
 import '../blocs/task/task_bloc.dart';
 import '../blocs/task/task_event.dart';
+import '../blocs/task/task_state.dart';
 
 class AddTaskPage extends StatefulWidget {
   final TaskEntity? existingTask;
@@ -105,9 +106,30 @@ class _AddTaskPageState extends State<AddTaskPage> {
   void _saveTask() {
     if (!_formKey.currentState!.validate()) return;
     final bloc = context.read<TaskBloc>();
+    final title = _titleController.text.trim();
+
+    if (bloc.state is TaskLoaded) {
+      final currentState = bloc.state as TaskLoaded;
+      final isDuplicate = currentState.allTasks.any((t) {
+        if (_isEditing && t.id == widget.existingTask!.id) return false;
+        return t.title.toLowerCase() == title.toLowerCase();
+      });
+
+      if (isDuplicate) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A task with this title already exists.', style: TextStyle(color: Colors.white)),
+            backgroundColor: AppColors.priorityHigh,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
     if (_isEditing) {
       final updated = widget.existingTask!.copyWith(
-        title: _titleController.text.trim(),
+        title: title,
         description: _descriptionController.text.trim(),
         priority: _priority,
         dueDate: _dueDate,
@@ -119,7 +141,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     } else {
       final task = TaskEntity(
         id: const Uuid().v4(),
-        title: _titleController.text.trim(),
+        title: title,
         description: _descriptionController.text.trim(),
         priority: _priority,
         dueDate: _dueDate,
